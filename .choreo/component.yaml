@@ -1,9 +1,10 @@
 schemaVersion: 1.1
 type: service
 endpoints:
-  - name: "Paws and Homes API"
-    port: 3000
+  - name: "paws-and-homes-api"
     type: REST
     context: "/api"
     networkVisibility: Public
     schemaFilePath: "openapi.yaml"
+    service:
+      port: 3000
