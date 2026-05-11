@@ -13,7 +13,7 @@ const pool = new Pool({
     database:process.env.DB_NAME,
     ssl:{
         rejectUnauthorized:true,
-        ca: fs.readFileSync(path.join(__dirname, '../../ca-615cecce-93b4-4add-8591-c830fac9e067.pem')).toString()
+        ca: process.env.DB_CA_CERT
     }
 
 })
