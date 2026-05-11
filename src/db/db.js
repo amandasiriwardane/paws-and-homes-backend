@@ -12,7 +12,7 @@ const pool = new Pool({
     password: process.env.DB_PASSWORD,
     database:process.env.DB_NAME,
     ssl:{
-        rejectUnauthorized:true,
+        rejectUnauthorized:false, //just for db to work without ca 
         ca: process.env.DB_CA_CERT
     }
 
