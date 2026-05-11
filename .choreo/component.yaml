@@ -1,9 +1,9 @@
-version: 1.1
+schemaVersion: 1.1
 type: service
 endpoints:
   - name: "Paws and Homes API"
-    port: 3000        # Must match your Express server port
+    port: 3000
     type: REST
     context: "/api"
-    visibility: Public
-    schemaFilePath: "openapi.yaml" # This links to the root file
+    networkVisibility: Public
+    schemaFilePath: "openapi.yaml"
