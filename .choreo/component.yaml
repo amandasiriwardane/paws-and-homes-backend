@@ -4,7 +4,7 @@ endpoints:
   - name: "paws-and-homes-api"
     type: REST
     context: "/api"
-    networkVisibility: Public
+    networkVisibility: Project
     schemaFilePath: "openapi.yaml"
     service:
       port: 3000
