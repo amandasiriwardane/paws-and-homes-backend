@@ -5,17 +5,20 @@ info:
 paths:
   /api/pets:
     get:
+      x-wso2-disable-security: true
       summary: Get all pets
       responses:
         "200":
           description: List of pets
     post:
+      x-wso2-disable-security: true
       summary: Create a pet
       responses:
         "201":
           description: Pet created
   /api/pets/{id}:
     delete:
+      x-wso2-disable-security: true
       summary: Delete a pet
       parameters:
         - name: id
