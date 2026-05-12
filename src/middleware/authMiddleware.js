@@ -52,8 +52,8 @@ function checkRole(allowedRoles){
         const roles = Array.isArray(rolesRaw)
             ? rolesRaw
             :[rolesRaw]
-        console.log("user roles", roles)
-        console.log("allowed roles", allowedRoles)
+        //console.log("user roles", roles)
+        //console.log("allowed roles", allowedRoles)
 
         const hasRole = roles.some(role => allowedRoles.includes(role))
 
