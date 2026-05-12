@@ -9,7 +9,10 @@ const app =express();
 
 //middleware
 app.use(cors({
-    origin: 'http://localhost:5173'
+    origin:[
+        'http://localhost:5173',
+        'https://7ca53e5e-c8a3-40ba-9e30-38244d911794.e1-eu-west-cdp.choreoapps.dev'
+    ]
 }));
 app.use(express.json());
 
