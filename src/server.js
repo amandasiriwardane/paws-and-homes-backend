@@ -4,6 +4,7 @@ require ('dotenv').config()
 const pool = require('./db/db')
 
 const petRoutes = require('./routes/petRoutes')
+const userRoutes = require('./routes/userRoutes')
 
 const app =express();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 
 //routes
 app.use('/api', petRoutes);
+app.use('/api', userRoutes);
 
 
 //test

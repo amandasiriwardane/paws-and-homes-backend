@@ -29,3 +29,10 @@ paths:
       responses:
         "200":
           description: Pet deleted
+  /api/users:
+    get:
+      x-wso2-disable-security: true
+      summary: Get all users(admin pnly)
+      responses:
+        "200":
+          description: List of users
