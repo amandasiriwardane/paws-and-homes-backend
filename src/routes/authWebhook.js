@@ -10,20 +10,24 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
         const userId = event?.user?.id;
         const claims = event?.user?.claims || {};
         
-        const customRole = claims["wso2.org"] || claims["userRole"];
+        // Correctly parse the custom user claim
+        const customRole = claims["wso2.org"] || claims["userRole"] || claims["userrole"];
 
         console.log('User ID Profile Context:', userId);
         console.log('Custom onboarding role parsed:', customRole);
         
-        // FIX 1: If there is no role choice data, return ONLY actionStatus. Omit operations entirely.
+        // --- ASGARDEO FIX 1: CLEARING OUT PRE-REGISTERED ACCOUNTS & ADMINS ---
+        // If there is no selection string data, we MUST omit the operations field entirely!
         if (!customRole || !userId) {
-            console.log("No custom sign-up selection. Passing token untouched.");
+            console.log("No custom sign-up selection found. Passing token untouched.");
             return res.status(200).json({
                 actionStatus: "SUCCESS"
             });
         }
 
-        // M2M token request
+        const cleanRoleValue = customRole.trim().toLowerCase();
+
+        // 1. Get Administrative M2M Token context
         const tokenResponse = await axios.post(
             `${process.env.ASGARDEO_BASE_URL}/oauth2/token`,
             'grant_type=client_credentials&scope=internal_user_mgt_update',
@@ -37,7 +41,7 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
         );
         const appToken = tokenResponse.data.access_token;
 
-        // Get all system roles
+        // 2. Fetch the roles definitions catalogue matrix
         const rolesResponse = await axios.get(
             `${process.env.ASGARDEO_BASE_URL}/scim2/Roles`,
             { headers: { 'Authorization': `Bearer ${appToken}` } }
@@ -45,41 +49,48 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
 
         const rolesList = rolesResponse.data.Resources || [];
         const selectedRole = rolesList.find(r =>
-            r.displayName?.toLowerCase() === customRole.trim().toLowerCase() 
+            r.displayName?.toLowerCase() === cleanRoleValue
         );
 
         if (!selectedRole) {
-            console.log(`Target database group matching [${customRole}] not found inside Asgardeo.`);
-            return res.status(200).json({ actionStatus: "SUCCESS" });
+            console.log(`Target database group matching [${cleanRoleValue}] not found inside Asgardeo.`);
+            // Fallback: Still inject the claim string directly into the token structure so frontend routes function
+            return res.status(200).json({
+                actionStatus: "SUCCESS",
+                operations: [
+                    {
+                        op: "add",
+                        path: "/accessToken/claims/roles",
+                        value: [cleanRoleValue]
+                    }
+                ]
+            });
         }
 
-        // Check if role is already mapped
+        // 3. Check if role is already permanently mapped
         const roleDetails = await axios.get(
             `${process.env.ASGARDEO_BASE_URL}/scim2/Roles/${selectedRole.id}`,
             { headers: { 'Authorization': `Bearer ${appToken}` } }
         );
 
         const alreadyAssigned = roleDetails.data.users?.some(u => u.value === userId);
-        const cleanRoleValue = customRole.trim().toLowerCase();
 
         if (alreadyAssigned) {
-            console.log('User already holds group membership. Injecting active claims structure.');
-            // FIX 2: Correctly structured path and payload parameters for Asgardeo API contract
+            console.log('User already holds group membership. Generating runtime active array claims.');
+            // --- ASGARDEO FIX 2: VALID CONTRACT RESPONSE STRUCTURE ---
             return res.status(200).json({
                 actionStatus: "SUCCESS",
                 operations: [
                     {
                         op: "add",
-                        path: "/accessToken/claims",
-                        value: {
-                            "roles": [cleanRoleValue]
-                        }
+                        path: "/accessToken/claims/roles",
+                        value: [cleanRoleValue]
                     }
                 ]
             });
         }
 
-        // Assign user permanently to target group
+        // 4. Assign user permanently to target security group inside identity registry
         await axios.patch(
             `${process.env.ASGARDEO_BASE_URL}/scim2/Roles/${selectedRole.id}`,
             {
@@ -104,17 +115,17 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
             operations: [
                 {
                     op: "add",
-                    path: "/accessToken/claims",
-                    value: {
-                        "roles": [cleanRoleValue]
-                    }
+                    path: "/accessToken/claims/roles",
+                    value: [cleanRoleValue]
                 }
             ]
         });    
     } catch (err) {
         console.error('Webhook mapping routine failure execution logs:', err.response?.data || err.message);
-        // Fallback layout rule: Ensure login doesn't crash on internal script failures
-        return res.status(200).json({ actionStatus: "SUCCESS" });
+        // Safety Fallback: Ensure login loop never completely crashes on internal code hiccups
+        return res.status(200).json({ 
+            actionStatus: "SUCCESS" 
+        });
     }
 });
 
