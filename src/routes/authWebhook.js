@@ -15,12 +15,11 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
         console.log('User ID Profile Context:', userId);
         console.log('Custom onboarding role parsed:', customRole);
         
-        // Handle pre-registered accounts and admins
+        // FIX 1: If there is no role choice data, return ONLY actionStatus. Omit operations entirely.
         if (!customRole || !userId) {
-            console.log("Existing user context matched. Letting token pass untouched.");
-            return res.json({
-                actionStatus: "SUCCESS",
-                operations: [] 
+            console.log("No custom sign-up selection. Passing token untouched.");
+            return res.status(200).json({
+                actionStatus: "SUCCESS"
             });
         }
 
@@ -44,7 +43,6 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
             { headers: { 'Authorization': `Bearer ${appToken}` } }
         );
 
-        // Find matching role row entry
         const rolesList = rolesResponse.data.Resources || [];
         const selectedRole = rolesList.find(r =>
             r.displayName?.toLowerCase() === customRole.trim().toLowerCase() 
@@ -52,10 +50,7 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
 
         if (!selectedRole) {
             console.log(`Target database group matching [${customRole}] not found inside Asgardeo.`);
-            return res.json({
-                actionStatus: "SUCCESS",
-                operations: [] 
-            });
+            return res.status(200).json({ actionStatus: "SUCCESS" });
         }
 
         // Check if role is already mapped
@@ -65,17 +60,22 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
         );
 
         const alreadyAssigned = roleDetails.data.users?.some(u => u.value === userId);
+        const cleanRoleValue = customRole.trim().toLowerCase();
 
         if (alreadyAssigned) {
-            console.log('User already holds group membership. Injecting active claims array.');
-            return res.json({
+            console.log('User already holds group membership. Injecting active claims structure.');
+            // FIX 2: Correctly structured path and payload parameters for Asgardeo API contract
+            return res.status(200).json({
                 actionStatus: "SUCCESS",
-                operations: [{ 
-                    op: "add", 
-                    path: "/accessToken/claims/roles", 
-                    valueType: "STRING_ARRAY", // FIX 1: Explicitly added valueType
-                    value: [customRole.toLowerCase()] 
-                }]
+                operations: [
+                    {
+                        op: "add",
+                        path: "/accessToken/claims",
+                        value: {
+                            "roles": [cleanRoleValue]
+                        }
+                    }
+                ]
             });
         }
 
@@ -99,21 +99,22 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
         );
 
         console.log('Role permanently linked inside database registry rows!');
-        return res.json({
+        return res.status(200).json({
             actionStatus: "SUCCESS",
-            operations: [{ 
-                op: "add", 
-                path: "/accessToken/claims/roles", 
-                valueType: "STRING_ARRAY", // FIX 2: Explicitly added valueType
-                value: [customRole.toLowerCase()] 
-            }]
+            operations: [
+                {
+                    op: "add",
+                    path: "/accessToken/claims",
+                    value: {
+                        "roles": [cleanRoleValue]
+                    }
+                }
+            ]
         });    
     } catch (err) {
         console.error('Webhook mapping routine failure execution logs:', err.response?.data || err.message);
-        return res.json({
-            actionStatus: "SUCCESS",
-            operations: [] 
-        });
+        // Fallback layout rule: Ensure login doesn't crash on internal script failures
+        return res.status(200).json({ actionStatus: "SUCCESS" });
     }
 });
 
