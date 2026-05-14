@@ -1,15 +1,17 @@
 // src/routes/authWebhook.js
 const express = require('express');
 const router = express.Router();
+const axios =require('axios')
+require ('dotenv').config()
 
-router.post('/api/auth/pre-issue-token', (req, res) => {
+router.post('/api/auth/pre-issue-token',async(req, res) => {
     try{
         const event = req.body?.event;
-        const userId = event?.user.id;
-        const claims = event?.user?.claims ||[];
-        const customRole = claims.find(
-            claim => claim.uri ==='http://wso2.org/claims/userRole'
-        )?.value;
+        const userId = event?.user?.id;
+        const claims = event?.user?.claims ||{};
+        
+        const customRole = claims["http://wso2.org/claims/userRole"] || claims["userRole"];
+
         console.log('User ID:', userId)
         console.log('Custom role:', customRole)
         
@@ -34,8 +36,8 @@ router.post('/api/auth/pre-issue-token', (req, res) => {
         const appToken = tokenResponse.data.access_token;
 
         //get all roles
-        const result = await axios.get(
-            `${process.env.ASGARDEO_BASE_URL}/scim2/v2/Roles`,
+        const rolesResponse = await axios.get(
+            `${process.env.ASGARDEO_BASE_URL}/scim2/Roles`,
             {
                 headers:{
                     'Authorization': `Bearer ${appToken}`
@@ -44,19 +46,19 @@ router.post('/api/auth/pre-issue-token', (req, res) => {
         )
 
         //find matching role
-        const roles = rolesResponse.data.Resource;
-        const selectedRole =roles.find(r=>
-            r.displayName === customRole &&
-            r.audienceType ==='application'
+        const rolesList = rolesResponse.data.Resources ||[];
+        const selectedRole =rolesList.find(r=>
+            r.displayName?.toLowerCase() === customRole.trim().toLowerCase() 
         )
 
         if (!selectedRole){
+            console.log(`Role ${customRole} not found in Asgardeo`);
             return res.json({actionStatus:"SUCCESS"})
         }
 
         //check if role already assigned
         const roleDetails = await axios.get(
-            `${process.env.ASGARDEO_BASE_URL}/scim2/v2/Roles/${selectedRole.id}`,
+            `${process.env.ASGARDEO_BASE_URL}/scim2/Roles/${selectedRole.id}`,
             {
                 headers:{
                     'Authorization': `Bearer ${appToken}`
@@ -69,12 +71,17 @@ router.post('/api/auth/pre-issue-token', (req, res) => {
         )
 
         if (alreadyAssigned){
-            return res.json({actionStatus:"SUCCESS"})
+            console.log('Role already assigned. Injecting runtime claim.');
+            // Add instructions so it applies to the current session token immediately
+            return res.json({
+                actionStatus: "SUCCESS",
+                operations: [{ op: "add", path: "/accessToken/claims/roles", value: [customRole.toLowerCase()] }]
+            })
         }
 
         //assign role permanently
-        await axiox.patch(
-            `${process.env.ASGARDEO_BASE_URL}/scim2/v2/Roles/${selectedRole.id}`,
+        await axios.patch(
+            `${process.env.ASGARDEO_BASE_URL}/scim2/Roles/${selectedRole.id}`,
             {
                 schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
                 Operations: [{
@@ -92,9 +99,12 @@ router.post('/api/auth/pre-issue-token', (req, res) => {
         )
 
         console.log('Roles assigned permanently!')
-        return res.json({actionStatus:"SUCCESS"})
+        return res.json({
+            actionStatus: "SUCCESS",
+            operations: [{ op: "add", path: "/accessToken/claims/roles", value: [customRole.toLowerCase()] }]
+        });    
     } catch (err){
-        cpnsple.log('Webhook error', err.message)
+        console.log('Webhook error', err.message)
         return res.json({actionStatus:"SUCCESS"})
     }
     
