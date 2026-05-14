@@ -10,12 +10,12 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
         const userId = event?.user?.id;
         const claims = event?.user?.claims || {};
         
-        const customRole = claims["http://wso2.org/claims/userRole"] || claims["userRole"];
+        const customRole = claims["wso2.org"] || claims["userRole"];
 
         console.log('User ID Profile Context:', userId);
         console.log('Custom onboarding role parsed:', customRole);
         
-        // FIX: Provide a valid empty operations array block for existing accounts/Admins
+        // Handle pre-registered accounts and admins
         if (!customRole || !userId) {
             console.log("Existing user context matched. Letting token pass untouched.");
             return res.json({
@@ -70,7 +70,12 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
             console.log('User already holds group membership. Injecting active claims array.');
             return res.json({
                 actionStatus: "SUCCESS",
-                operations: [{ op: "add", path: "/accessToken/claims/roles", value: [customRole.toLowerCase()] }]
+                operations: [{ 
+                    op: "add", 
+                    path: "/accessToken/claims/roles", 
+                    valueType: "STRING_ARRAY", // FIX 1: Explicitly added valueType
+                    value: [customRole.toLowerCase()] 
+                }]
             });
         }
 
@@ -96,7 +101,12 @@ router.post('/api/auth/pre-issue-token', async (req, res) => {
         console.log('Role permanently linked inside database registry rows!');
         return res.json({
             actionStatus: "SUCCESS",
-            operations: [{ op: "add", path: "/accessToken/claims/roles", value: [customRole.toLowerCase()] }]
+            operations: [{ 
+                op: "add", 
+                path: "/accessToken/claims/roles", 
+                valueType: "STRING_ARRAY", // FIX 2: Explicitly added valueType
+                value: [customRole.toLowerCase()] 
+            }]
         });    
     } catch (err) {
         console.error('Webhook mapping routine failure execution logs:', err.response?.data || err.message);
