@@ -5,7 +5,6 @@ const pool = require('./db/db')
 
 const petRoutes = require('./routes/petRoutes')
 const userRoutes = require('./routes/userRoutes')
-const authWebhook = require('./routes/authWebhook')
 
 const app =express();
 
@@ -21,7 +20,6 @@ app.use(express.json());
 //routes
 app.use('/api', petRoutes);
 app.use('/api', userRoutes);
-app.use('/api', authWebhook);
 
 
 //test

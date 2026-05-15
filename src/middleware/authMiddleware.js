@@ -21,25 +21,30 @@ function verifyToken(req,res,next){
     //get token from header
     const authHeader =req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
     if(!token){
         return res.status(401).json({message:'No token provided'})
     }
+    const decodedRaw = jwt.decode(token, { complete: true });
+
+    if (!decodedRaw || !decodedRaw.payload){
+        return res.status(401).json({message:'Invalid token'})
+    }
+    //console.log("RAW JWT:", JSON.stringify(decodedRaw.payload, null, 2));
+
 
 
     //verify token
     jwt.verify(token, getKey,{
-        algorithms:['RS256'],
-            issuer: `${process.env.ASGARDEO_BASE_URL}/oauth2/token`,
-            audience: process.env.ASGARDEO_CLIENT_ID
-        
+        algorithms:['RS256']
+            
     }, (err,decoded)=>{
         if(err){
-            console.log("Validation Error:", err.message); 
+            //console.log("Validation Error:", err.message); 
             return res.status(401).json({message:'Invalid token '})
         }
 
         req.user = decoded //attach use info to request 
+        //console.log("REQ.USER FULL:", JSON.stringify(req.user, null, 2));
         next() //allow req to contine
     })
 }
