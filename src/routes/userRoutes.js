@@ -49,7 +49,8 @@ router.get('/users',verifyToken, checkRole(['admin']), async (req,res)=>{
 
 router.post('/users/complete-registration', verifyToken, async (req, res) => {
   try {
-    const { selectedRole, userId , userName} = req.body;
+    const { selectedRole , userName} = req.body;
+    const userId = req.user.sub;
     console.log("REQ.USER:", req.user);
     console.log("SCIM USER ID FROM FRONTEND:", userId);
 
@@ -68,7 +69,7 @@ router.post('/users/complete-registration', verifyToken, async (req, res) => {
     // get M2M token
     const tokenResponse = await axios.post(
       `${process.env.ASGARDEO_BASE_URL}/oauth2/token`,
-      'grant_type=client_credentials&scope=internal_group_mgt_update',
+      'grant_type=client_credentials&scope=internal_group_mgt_update internal_user_mgt_view',
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         auth: {
@@ -83,31 +84,50 @@ router.post('/users/complete-registration', verifyToken, async (req, res) => {
     console.log("Selected Role:", selectedRole);
     console.log("Mapped Group ID:", groupId);
     console.log("User ID being added:", userId);
-    // add user to group
-    await axios.patch(
-      `${process.env.ASGARDEO_BASE_URL}/scim2/Groups/${groupId}`,
-      {
+    console.log("PATCH BODY:", JSON.stringify({
         schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
         Operations: [
-        {
+            {
             op: "add",
-            value: {
-            members: [
+            path: "members",
+            value: [
                 {
-                display: userName,
                 value: userId
                 }
             ]
             }
-        }
         ]
-    },
+        }, null, 2));
+    // add user to group
+    const patchBody = {
+    schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
+    Operations: [
+        {
+        op: "add",
+        value: {
+            members: [
+            {
+                value: userId,
+                display: `DEFAULT/${userName}`,
+                "$ref": `${process.env.ASGARDEO_BASE_URL}/scim2/Users/${userId}`
+            }
+            ]
+        }
+        }
+    ]
+    };
+
+    console.log("PATCH BODY:", JSON.stringify(patchBody, null, 2));
+
+    await axios.patch(
+    `${process.env.ASGARDEO_BASE_URL}/scim2/Groups/${groupId}`,
+    patchBody,
     {
         headers: {
         Authorization: `Bearer ${appToken}`,
-        "Content-Type": "application/scim+json"
+        "Content-Type": "application/json"
         }
-      }
+    }
     );
     console.log("GROUP PATCH SUCCESS");
     res.json({ message: 'Role assigned successfully!' });
@@ -132,6 +152,42 @@ router.post('/users/complete-registration', verifyToken, async (req, res) => {
     }
     }
 });
+router.get('/groups-test', async (req, res) => {
+  try {
 
+    const tokenResponse = await axios.post(
+      `${process.env.ASGARDEO_BASE_URL}/oauth2/token`,
+      'grant_type=client_credentials&scope=internal_group_mgt_view',
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        auth: {
+          username: process.env.M2M_CLIENT_ID,
+          password: process.env.M2M_CLIENT_SECRET
+        }
+      }
+    );
+
+    const appToken = tokenResponse.data.access_token;
+
+    const result = await axios.get(
+      `${process.env.ASGARDEO_BASE_URL}/scim2/Groups`,
+      {
+        headers: {
+          Authorization: `Bearer ${appToken}`
+        }
+      }
+    );
+
+    console.log(JSON.stringify(result.data, null, 2));
+
+    res.json(result.data);
+
+  } catch (err) {
+    console.log(err.response?.data || err.message);
+    res.status(500).json(err.response?.data || err.message);
+  }
+});
 
 module.exports = router

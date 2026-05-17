@@ -20,7 +20,9 @@ function getKey(header, callback){
 function verifyToken(req,res,next){
     //get token from header
     const authHeader =req.headers['authorization'];
+    console.log("AUTH HEADER:", authHeader);
     const token = authHeader && authHeader.split(' ')[1];
+    console.log("EXTRACTED TOKEN:", token);
     if(!token){
         return res.status(401).json({message:'No token provided'})
     }
@@ -29,7 +31,7 @@ function verifyToken(req,res,next){
     if (!decodedRaw || !decodedRaw.payload){
         return res.status(401).json({message:'Invalid token'})
     }
-    //console.log("RAW JWT:", JSON.stringify(decodedRaw.payload, null, 2));
+    console.log("RAW JWT:", JSON.stringify(decodedRaw.payload, null, 2));
 
 
 
@@ -39,12 +41,12 @@ function verifyToken(req,res,next){
             
     }, (err,decoded)=>{
         if(err){
-            //console.log("Validation Error:", err.message); 
+            console.log("Validation Error:", err.message); 
             return res.status(401).json({message:'Invalid token '})
         }
 
         req.user = decoded //attach use info to request 
-        //console.log("REQ.USER FULL:", JSON.stringify(req.user, null, 2));
+        console.log("REQ.USER FULL:", JSON.stringify(req.user, null, 2));
         next() //allow req to contine
     })
 }
@@ -57,8 +59,8 @@ function checkRole(allowedRoles){
         const roles = Array.isArray(rolesRaw)
             ? rolesRaw
             :[rolesRaw]
-        //console.log("user roles", roles)
-        //console.log("allowed roles", allowedRoles)
+        console.log("user roles", roles)
+        console.log("allowed roles", allowedRoles)
 
         const hasRole = roles.some(role => allowedRoles.includes(role))
 
