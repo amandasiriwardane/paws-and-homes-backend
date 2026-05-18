@@ -36,3 +36,10 @@ paths:
       responses:
         "200":
           description: List of users
+    /api/users/complete-registration:
+    post:
+      x-wso2-disable-security: true
+      summary: Complete user registration
+      responses:
+        "200":
+          description: Role assigned successfully
