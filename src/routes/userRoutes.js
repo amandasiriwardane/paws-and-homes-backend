@@ -3,6 +3,9 @@ const router= express.Router()
 const axios =require('axios')
 const {verifyToken , checkRole} = require('../middleware/authMiddleware')
 require('dotenv').config()
+router.get('/users/test', (req,res)=>{
+    res.json({message:'USER ROUTE WORKS'});
+});
 
 router.get('/users',verifyToken, checkRole(['admin']), async (req,res)=>{
     try{

@@ -12,7 +12,8 @@ const app =express();
 app.use(cors({
     origin:[
         'http://localhost:5173',
-        'https://7ca53e5e-c8a3-40ba-9e30-38244d911794.e1-eu-west-cdp.choreoapps.dev'
+        'https://7ca53e5e-c8a3-40ba-9e30-38244d911794.e1-eu-west-cdp.choreoapps.dev',
+        'https://b7f93beb-311e-4d87-8f4a-6abe89964a77.e1-eu-west-cdp.choreoapps.dev'
     ]
 }));
 app.use(express.json());
