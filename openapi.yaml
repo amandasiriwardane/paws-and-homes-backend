@@ -17,7 +17,7 @@ paths:
         "201":
           description: Pet created
   /api/pets/{id}:
-    delete:
+    patch:
       x-wso2-disable-security: true
       summary: Update a pet
       parameters:
