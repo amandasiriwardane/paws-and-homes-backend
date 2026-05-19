@@ -19,6 +19,18 @@ paths:
   /api/pets/{id}:
     delete:
       x-wso2-disable-security: true
+      summary: Update a pet
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pet updated
+    delete:
+      x-wso2-disable-security: true
       summary: Delete a pet
       parameters:
         - name: id
